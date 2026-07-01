@@ -49,8 +49,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "YOUR_GITHUB",
-        "repo": "rekh-browser"
+        "owner": "thesolelane",
+        "repo": "rekh-desktop"
       }
     ]
   },
