@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Defense-in-depth: block inline/injected scripts; allow user-configured AI
+       endpoints via connect-src. Fonts are bundled/system, so no remote origins. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src *;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REKH</title>
+  <link rel="stylesheet" href="newtab.css" />
+</head>
+<body>
+  <header id="titlebar">
+    <div id="titlebar-left">
+      <span id="titlebar-wordmark">REKH</span>
+      <span id="vpn-indicator" title="Privacy Mode (VPN)">🛡️</span>
+      <span id="tracker-count" title="Trackers blocked this session"></span>
+      <button id="btn-ai-toggle" aria-label="Toggle AI Assistant">AI</button>
+      <button id="btn-library" aria-label="Library" title="Bookmarks · History · Downloads">📚</button>
+      <button id="btn-settings" aria-label="Settings">⚙</button>
+      <button id="btn-theme" aria-label="Theme" title="Theme: Auto">◐</button>
+    </div>
+    <div id="titlebar-controls">
+      <button id="btn-minimize" aria-label="Minimize">─</button>
+      <button id="btn-maximize" aria-label="Maximize">□</button>
+      <button id="btn-close" aria-label="Close">✕</button>
+    </div>
+  </header>
+  <div id="tab-bar">
+    <div id="tab-list"></div>
+    <button id="new-tab-btn" aria-label="New Tab">+</button>
+  </div>
+  <div id="omnibox-wrapper">
+    <div id="nav-controls">
+      <button id="btn-back" aria-label="Back" title="Back" disabled>‹</button>
+      <button id="btn-forward" aria-label="Forward" title="Forward" disabled>›</button>
+      <button id="btn-reload" aria-label="Reload" title="Reload">⟳</button>
+    </div>
+    <input type="text" id="omnibox" placeholder="Search or type a URL…" spellcheck="false" autocomplete="off" />
+    <button id="btn-bookmark" aria-label="Bookmark this page" title="Bookmark">☆</button>
+  </div>
+  <div id="find-bar">
+    <input type="text" id="find-input" placeholder="Find in page…" spellcheck="false" autocomplete="off" />
+    <span id="find-count"></span>
+    <button id="find-prev" aria-label="Previous match" title="Previous">‹</button>
+    <button id="find-next" aria-label="Next match" title="Next">›</button>
+    <button id="find-close" aria-label="Close find" title="Close">✕</button>
+  </div>
+  <main id="app">
+    <div id="tab-container">
+      <div id="start-page">
+        <div id="start-inner">
+          <div id="start-wordmark">REKH</div>
+          <div id="start-tagline">knowledge · awareness · understanding</div>
+          <form id="start-search-form" autocomplete="off">
+            <input type="text" id="start-search" placeholder="Search the web or enter an address" spellcheck="false" autocomplete="off" />
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  <aside id="utility-sidebar" aria-label="REKH Utilities">
+    <div id="utility-sidebar-header">
+      <span id="utility-sidebar-title">📚 Bookmarks</span>
+      <button id="utility-sidebar-close" aria-label="Close panel">✕</button>
+    </div>
+    <div id="utility-sidebar-body"><ul id="utility-list"></ul></div>
+  </aside>
+  <aside id="ai-sidebar" aria-label="REKH Assistant">
+    <div id="ai-sidebar-header">
+      <span>✦ Assistant</span>
+      <button id="ai-sidebar-close" aria-label="Close Assistant">✕</button>
+    </div>
+    <div id="ai-sidebar-body">
+      <div id="ai-actions">
+        <button class="ai-action-btn" data-action="summarize">Summarize</button>
+        <button class="ai-action-btn" data-action="explain">Explain</button>
+        <button class="ai-action-btn" data-action="extract">Extract</button>
+        <button class="ai-action-btn" data-action="rewrite">Rewrite</button>
+      </div>
+      <div id="ai-output-wrapper"><div id="ai-thread"><span class="ai-placeholder">Ask about this page, or pick an action above.</span></div></div>
+      <div id="ai-input-row">
+        <textarea id="ai-input" placeholder="Ask anything about this page…" rows="1" spellcheck="false"></textarea>
+        <button id="ai-send" aria-label="Send">➤</button>
+      </div>
+      <div id="ai-footer"><span id="ai-status">Ready</span><button id="ai-clear">Clear chat</button></div>
+    </div>
+  </aside>
+  <div id="ai-overlay"></div>
+  <div id="toast"></div>
+  <script src="newtab.js"></script>
+</body>
+</html>
