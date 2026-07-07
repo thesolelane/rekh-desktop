@@ -2,7 +2,26 @@ const { app, BrowserWindow, ipcMain, session, net, safeStorage } = require('elec
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
+// Use the real product name in dev too, so the app/menu name and the userData
+// directory (config, AI key, adblock cache) match the packaged "REKH" build.
+// Must run before any app.getPath('userData') call below.
+app.setName('REKH');
 const APP_ICON = path.join(__dirname, 'build', 'icon.png');
+
+// Safety net: a stray uncaught error in the main process must not kill the
+// browser with the default "A JavaScript error occurred" dialog. Log it and
+// keep running so one bad handler never takes down the whole app.
+function logMainError(kind, err) {
+  try {
+    const dir = app.getPath('userData');
+    fs.mkdirSync(dir, { recursive: true });
+    const line = `[${new Date().toISOString()}] ${kind}: ${err && err.stack ? err.stack : err}\n`;
+    fs.appendFileSync(path.join(dir, 'rekh-error.log'), line);
+  } catch (e) {}
+  console.error(`[REKH] ${kind}:`, err && err.message ? err.message : err);
+}
+process.on('uncaughtException', (err) => logMainError('uncaughtException', err));
+process.on('unhandledRejection', (err) => logMainError('unhandledRejection', err));
 let ElectronBlocker = null, AdblockRequest = null;
 try { const m = require('@ghostery/adblocker-electron'); ElectronBlocker = m.ElectronBlocker; AdblockRequest = m.Request; } catch (e) {}
 let fetchFn = (typeof fetch !== 'undefined') ? fetch : null;
@@ -313,11 +332,16 @@ function createWindow() {
 }
 
 function setupAutoUpdater() {
-  autoUpdater.checkForUpdatesAndNotify();
-  setInterval(() => autoUpdater.checkForUpdatesAndNotify(), 4 * 60 * 60 * 1000);
+  // Only meaningful in a packaged build; skip in dev.
+  if (!app.isPackaged) return;
+  // Attach listeners FIRST — an EventEmitter 'error' with no listener throws an
+  // uncaught exception (the "A JavaScript error occurred" dialog).
+  autoUpdater.on('error', (err) => console.error('[REKH] Update error:', err && err.message ? err.message : err));
   autoUpdater.on('update-available', (info) => { if (mainWindow) mainWindow.webContents.send('update-available', info); });
   autoUpdater.on('update-downloaded', () => { if (mainWindow) mainWindow.webContents.send('update-downloaded'); });
-  autoUpdater.on('error', (err) => console.error('[REKH] Update error:', err));
+  const check = () => { try { const p = autoUpdater.checkForUpdatesAndNotify(); if (p && p.catch) p.catch((e) => console.error('[REKH] Update check failed:', e && e.message ? e.message : e)); } catch (e) { console.error('[REKH] Update check threw:', e && e.message ? e.message : e); } };
+  check();
+  setInterval(check, 4 * 60 * 60 * 1000);
 }
 
 app.whenReady().then(() => {
