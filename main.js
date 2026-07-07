@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, session, net, safeStorage } = require('elec
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
+const APP_ICON = path.join(__dirname, 'build', 'icon.png');
 let ElectronBlocker = null, AdblockRequest = null;
 try { const m = require('@ghostery/adblocker-electron'); ElectronBlocker = m.ElectronBlocker; AdblockRequest = m.Request; } catch (e) {}
 let fetchFn = (typeof fetch !== 'undefined') ? fetch : null;
@@ -289,7 +290,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, frame: false, transparent: false, backgroundColor: '#0B0B0D',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, webviewTag: true },
-    titleBarStyle: 'hidden'
+    titleBarStyle: 'hidden',
+    ...(fs.existsSync(APP_ICON) ? { icon: APP_ICON } : {})
   });
 
   // Lock down every <webview> the renderer creates AND force it onto the
@@ -319,6 +321,10 @@ function setupAutoUpdater() {
 }
 
 app.whenReady().then(() => {
+  // Replace Electron's default dock icon with the REKH mark (dev + any run where the icon ships).
+  if (process.platform === 'darwin' && app.dock && fs.existsSync(APP_ICON)) {
+    try { app.dock.setIcon(APP_ICON); } catch (e) {}
+  }
   currentConfig = loadConfig();
   if (currentConfig.blockAds === undefined) currentConfig.blockAds = true;
   if (currentConfig.hideSearchAds === undefined) currentConfig.hideSearchAds = true;
