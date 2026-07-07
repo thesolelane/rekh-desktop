@@ -331,6 +331,14 @@ function createWindow() {
       setTimeout(() => { mainWindow.webContents.executeJavaScript("localStorage.removeItem('rekh_ai_provider');localStorage.removeItem('rekh_ai_endpoint');localStorage.removeItem('rekh_ai_model');").catch(() => {}); }, 800);
     });
   }
+  // If the REKH UI itself (not a page) crashes, log it and reload the shell.
+  mainWindow.webContents.on('render-process-gone', (e, details) => {
+    logMainError('UI render-process-gone', `reason=${details.reason} exitCode=${details.exitCode}`);
+    if (details.reason !== 'clean-exit' && mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.reload(); } catch (err) {}
+    }
+  });
+  mainWindow.webContents.on('unresponsive', () => logMainError('UI unresponsive', 'renderer stopped responding'));
   mainWindow.on('closed', () => { mainWindow = null; stopVpnHealthCheck(); });
 }
 
@@ -366,6 +374,14 @@ app.whenReady().then(() => {
   setupAutoUpdater();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
+// GPU/utility process crashes blank every page for a moment, then Chromium
+// respawns the process and repaints — the "went blank then recovered" symptom.
+// Log these so the cause is captured (they don't need an explicit reload).
+app.on('child-process-gone', (event, details) => {
+  if (details.reason === 'clean-exit') return;
+  logMainError('child-process-gone', `type=${details.type} reason=${details.reason} exitCode=${details.exitCode} name=${details.name || ''}`);
+});
+
 // Links that try to open a new window/tab (target=_blank, window.open) become
 // new REKH tabs instead of detached Electron windows.
 app.on('web-contents-created', (event, contents) => {
@@ -380,6 +396,15 @@ app.on('web-contents-created', (event, contents) => {
     });
     // Cosmetic filtering + search-ad removal once the DOM is ready.
     contents.on('dom-ready', () => { injectCosmetics(contents); injectSearchScrub(contents); });
+    // If a page's renderer dies, record why and reload so the tab doesn't sit blank.
+    contents.on('render-process-gone', (e, details) => {
+      let url = ''; try { url = contents.getURL(); } catch (err) {}
+      logMainError('webview render-process-gone', `reason=${details.reason} exitCode=${details.exitCode} url=${url}`);
+      if (details.reason !== 'clean-exit' && details.reason !== 'killed') {
+        try { if (!contents.isDestroyed()) contents.reload(); } catch (err) {}
+      }
+    });
+    contents.on('unresponsive', () => { let url = ''; try { url = contents.getURL(); } catch (err) {} logMainError('webview unresponsive', url); });
   }
 });
 
