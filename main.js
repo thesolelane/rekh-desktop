@@ -1,5 +1,8 @@
 const { app, BrowserWindow, ipcMain, session, net, safeStorage } = require('electron');
-const { autoUpdater } = require('electron-updater');
+// Optional at runtime: if the module isn't bundled, auto-update just no-ops
+// rather than crashing the whole app at load with a dialog.
+let autoUpdater = null;
+try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.error('[REKH] electron-updater unavailable:', e && e.message ? e.message : e); }
 const fs = require('fs');
 const path = require('path');
 // Use the real product name in dev too, so the app/menu name and the userData
@@ -332,8 +335,8 @@ function createWindow() {
 }
 
 function setupAutoUpdater() {
-  // Only meaningful in a packaged build; skip in dev.
-  if (!app.isPackaged) return;
+  // Only meaningful in a packaged build with the module present; skip otherwise.
+  if (!autoUpdater || !app.isPackaged) return;
   // Attach listeners FIRST — an EventEmitter 'error' with no listener throws an
   // uncaught exception (the "A JavaScript error occurred" dialog).
   autoUpdater.on('error', (err) => console.error('[REKH] Update error:', err && err.message ? err.message : err));
