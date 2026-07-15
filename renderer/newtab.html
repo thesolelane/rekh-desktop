@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <!-- Defense-in-depth: block inline/injected scripts; allow user-configured AI
        endpoints via connect-src. Fonts are bundled/system, so no remote origins. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src *;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; object-src 'none'; base-uri 'none';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>REKH</title>
   <link rel="stylesheet" href="newtab.css" />
@@ -17,6 +17,8 @@
       <span id="tracker-count" title="Trackers blocked this session"></span>
       <button id="btn-ai-toggle" aria-label="Toggle AI Assistant">AI</button>
       <button id="btn-library" aria-label="Library" title="Bookmarks · History · Downloads">📚</button>
+      <button id="btn-vault" aria-label="Vault" title="Password Vault">🔐</button>
+      <button id="btn-knowledge" aria-label="Knowledge Base" title="About You — personalize your AI">🧠</button>
       <button id="btn-settings" aria-label="Settings">⚙</button>
       <button id="btn-theme" aria-label="Theme" title="Theme: Auto">◐</button>
     </div>
@@ -77,6 +79,7 @@
         <button class="ai-action-btn" data-action="explain">Explain</button>
         <button class="ai-action-btn" data-action="extract">Extract</button>
         <button class="ai-action-btn" data-action="rewrite">Rewrite</button>
+        <button class="ai-action-btn" id="ai-tools-btn" title="Connect tools & services">🔧 Tools</button>
       </div>
       <div id="ai-output-wrapper"><div id="ai-thread"><span class="ai-placeholder">Ask about this page, or pick an action above.</span></div></div>
       <div id="ai-input-row">
@@ -89,5 +92,6 @@
   <div id="ai-overlay"></div>
   <div id="toast"></div>
   <script src="newtab.js"></script>
+  <script src="ui-panels.js"></script>
 </body>
 </html>

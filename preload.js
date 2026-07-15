@@ -18,5 +18,14 @@ contextBridge.exposeInMainWorld('rekhAPI', {
   onUpdateAvailable: (cb) => ipcRenderer.on('update-available', (e,d) => cb(d)),
   onUpdateDownloaded: (cb) => ipcRenderer.on('update-downloaded', (e,d) => cb(d)),
   onOpenNewTab: (cb) => ipcRenderer.on('open-new-tab', (e,url) => cb(url)),
-  onDownloadUpdate: (cb) => ipcRenderer.on('download-update', (e,d) => cb(d))
+  onDownloadUpdate: (cb) => ipcRenderer.on('download-update', (e,d) => cb(d)),
+  // Encrypted vault — all crypto stays in main; renderer only sends/receives values.
+  vaultStatus: () => ipcRenderer.invoke('vault-status'),
+  vaultCreate: (password) => ipcRenderer.invoke('vault-create', { password }),
+  vaultUnlock: (password) => ipcRenderer.invoke('vault-unlock', { password }),
+  vaultLock: () => ipcRenderer.invoke('vault-lock'),
+  vaultList: () => ipcRenderer.invoke('vault-list'),
+  vaultGet: (id) => ipcRenderer.invoke('vault-get', { id }),
+  vaultAdd: (entry) => ipcRenderer.invoke('vault-add', { entry }),
+  vaultDelete: (id) => ipcRenderer.invoke('vault-delete', { id })
 });

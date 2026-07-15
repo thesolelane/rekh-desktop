@@ -49,6 +49,18 @@ const CONFIG_PATH = path.join(app.getPath('userData'), 'rekh-config.json');
 
 function getWebSession() { return session.fromPartition(WEB_PARTITION); }
 
+// Deny sensitive device/permission requests by default (it's a privacy browser).
+// Web pages can't grab camera, mic, geolocation, notifications, USB/HID/serial, etc.
+function setupPermissions() {
+  const DENY = new Set(['media','camera','microphone','geolocation','notifications','midi','midiSysex','hid','serial','usb','clipboard-read','display-capture','background-sync','idle-detection','pointerLock','openExternal','speaker-selection','window-management']);
+  const allow = (perm) => !DENY.has(perm);
+  for (const ses of [getWebSession(), session.defaultSession]) {
+    ses.setPermissionRequestHandler((wc, permission, cb) => cb(allow(permission)));
+    ses.setPermissionCheckHandler((wc, permission) => allow(permission));
+    try { ses.setDevicePermissionHandler(() => false); } catch (e) {}
+  }
+}
+
 function loadConfig() {
   try { if (fs.existsSync(CONFIG_PATH)) return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {}
   return { vpnEnabled: false, proxyRules: 'socks5://localhost:9050', blockAds: true, httpsOnly: false, doh: false, clearOnExit: false, hideSearchAds: true };
@@ -311,7 +323,7 @@ function setupDownloads() {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, frame: false, transparent: false, backgroundColor: '#0B0B0D',
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, webviewTag: true },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: true },
     titleBarStyle: 'hidden',
     ...(fs.existsSync(APP_ICON) ? { icon: APP_ICON } : {})
   });
@@ -321,9 +333,18 @@ function createWindow() {
   mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     delete webPreferences.preload;
     webPreferences.nodeIntegration = false;
+    webPreferences.nodeIntegrationInSubFrames = false;
     webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
     params.partition = WEB_PARTITION;
   });
+
+  // The privileged UI holds rekhAPI (vault + AI IPC). It must NEVER navigate to
+  // remote content or spawn windows — else a web origin could inherit rekhAPI.
+  const lockUiNav = (e, url) => { if (!/^file:/i.test(url)) { e.preventDefault(); logMainError('blocked-ui-nav', url); } };
+  mainWindow.webContents.on('will-navigate', lockUiNav);
+  mainWindow.webContents.on('will-redirect', lockUiNav);
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'newtab.html'));
   if (process.env.REKH_RESET_AI) {
@@ -368,6 +389,7 @@ app.whenReady().then(() => {
   currentConfig.clearOnExit = !!currentConfig.clearOnExit;
   applyDoh(currentConfig.doh);
   applyProxy(currentConfig);
+  setupPermissions();
   createWindow();
   setupAdblock();
   setupDownloads();
@@ -390,8 +412,10 @@ app.on('web-contents-created', (event, contents) => {
       if (mainWindow && url && /^https?:\/\//i.test(url)) mainWindow.webContents.send('open-new-tab', url);
       return { action: 'deny' };
     });
-    // HTTPS-only mode: upgrade top-level http navigations to https.
+    // Scheme allowlist + HTTPS-only upgrade for guest pages.
     contents.on('will-navigate', (e, url) => {
+      // Only web + about. Block file:, javascript:, data:, blob:, chrome:, etc.
+      if (!/^(https?:|about:)/i.test(url)) { e.preventDefault(); logMainError('blocked-scheme', url); return; }
       if (currentConfig.httpsOnly && /^http:\/\//i.test(url)) { e.preventDefault(); contents.loadURL('https://' + url.slice(7)); }
     });
     // Cosmetic filtering + search-ad removal once the DOM is ready.
@@ -485,6 +509,44 @@ ipcMain.handle('rekh-import-ai-key-enc', (event, b64) => {
   if (b64 && !(currentConfig.aiKey && currentConfig.aiKey.data)) { currentConfig.aiKey = { enc: true, data: b64 }; saveConfig(currentConfig); }
   return { ok: true };
 });
+// Encrypted vault (zero-knowledge) lives in its own module — see vault.js.
+require('./vault').register();
+
+// Build the provider-specific request headers + body.
+function buildAiRequest(provider, { model, messages, key }) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (provider === 'anthropic') {
+    // Claude uses x-api-key + anthropic-version, requires max_tokens, takes
+    // system as a top-level field, and returns content[] rather than choices[].
+    if (key) headers['x-api-key'] = key;
+    headers['anthropic-version'] = '2023-06-01';
+    const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+    const payload = { model: model || 'claude-opus-4-8', max_tokens: 4096, messages: messages.filter(m => m.role !== 'system') };
+    if (system) payload.system = system;
+    return { headers, body: JSON.stringify(payload) };
+  }
+  if (provider === 'ollama') {
+    // Native /api/generate takes a single prompt — flatten the chat.
+    const flat = messages.map(m => (m.role === 'assistant' ? 'Assistant: ' : m.role === 'system' ? '' : 'User: ') + m.content).join('\n\n');
+    return { headers, body: JSON.stringify({ model, prompt: flat, stream: false }) };
+  }
+  if (key) headers['Authorization'] = 'Bearer ' + key;
+  if (provider === 'openrouter') { headers['HTTP-Referer'] = 'https://rekh.dev'; headers['X-Title'] = 'REKH'; }
+  return { headers, body: JSON.stringify({ model, messages, stream: false }) };
+}
+// OpenAI-compatible shape (openai/openrouter/tinfoil/custom).
+function parseOpenAiText(d) {
+  return d.choices?.[0]?.message?.content || d.message?.content || d.error?.message || JSON.stringify(d);
+}
+// Parse the provider-specific response shape into plain text.
+function parseAiResponse(provider, d) {
+  if (provider === 'anthropic') {
+    if (Array.isArray(d.content)) return d.content.filter(b => b && b.type === 'text').map(b => b.text).join('') || 'No response.';
+    return d.error?.message || JSON.stringify(d);
+  }
+  if (provider === 'ollama') return d.response || d.message?.content || 'No response.';
+  return parseOpenAiText(d);
+}
 // The AI request runs here, in main, so the key never enters page-facing code.
 ipcMain.handle('rekh-ai-request', async (event, opts) => {
   const { provider, endpoint, model } = opts || {};
@@ -493,41 +555,10 @@ ipcMain.handle('rekh-ai-request', async (event, opts) => {
   const messages = (Array.isArray(opts.messages) && opts.messages.length)
     ? opts.messages
     : [{ role: 'user', content: (opts && opts.prompt) || '' }];
-  const key = readAiKey();
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    let body;
-    if (provider === 'anthropic') {
-      // Claude uses x-api-key + anthropic-version, requires max_tokens, takes
-      // system as a top-level field, and returns content[] rather than choices[].
-      if (key) headers['x-api-key'] = key;
-      headers['anthropic-version'] = '2023-06-01';
-      const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
-      const chat = messages.filter(m => m.role !== 'system');
-      const payload = { model: model || 'claude-opus-4-8', max_tokens: 4096, messages: chat };
-      if (system) payload.system = system;
-      body = JSON.stringify(payload);
-    } else if (provider === 'ollama') {
-      // Native /api/generate takes a single prompt — flatten the chat.
-      const flat = messages.map(m => (m.role === 'assistant' ? 'Assistant: ' : m.role === 'system' ? '' : 'User: ') + m.content).join('\n\n');
-      body = JSON.stringify({ model, prompt: flat, stream: false });
-    } else {
-      if (key) headers['Authorization'] = 'Bearer ' + key;
-      if (provider === 'openrouter') { headers['HTTP-Referer'] = 'https://rekh.dev'; headers['X-Title'] = 'REKH'; }
-      body = JSON.stringify({ model, messages, stream: false });
-    }
+    const { headers, body } = buildAiRequest(provider, { model, messages, key: readAiKey() });
     const res = await fetchFn(endpoint, { method: 'POST', headers, body });
     const d = await res.json();
-    let text;
-    if (provider === 'anthropic') {
-      text = Array.isArray(d.content)
-        ? (d.content.filter(b => b && b.type === 'text').map(b => b.text).join('') || 'No response.')
-        : (d.error && d.error.message) || JSON.stringify(d);
-    } else if (provider === 'ollama') {
-      text = d.response || (d.message && d.message.content) || 'No response.';
-    } else {
-      text = (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || (d.message && d.message.content) || (d.error && d.error.message) || JSON.stringify(d);
-    }
-    return { text };
+    return { text: parseAiResponse(provider, d) };
   } catch (e) { return { error: e.message }; }
 });
