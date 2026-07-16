@@ -82,11 +82,13 @@ body.is-mac #titlebar-controls { display:none; }
 #start-search { width:100%; padding:15px 26px; font-size:16px; font-family:'Inter',sans-serif; background:rgba(var(--ink),0.05); border:1px solid rgba(var(--ink),0.08); border-radius:28px; color:rgb(var(--ink)); outline:none; transition:border 0.2s, background 0.2s, box-shadow 0.25s; caret-color:var(--accent); }
 #start-search::placeholder { color:rgba(var(--ink),0.25); }
 #start-search:focus { background:rgba(var(--ink),0.07); border-color:rgba(var(--accent-rgb),0.45); box-shadow:0 0 0 4px rgba(var(--accent-rgb),0.08), 0 10px 34px rgba(0,0,0,0.45); }
-#utility-sidebar, #ai-sidebar { position:fixed; top:0; height:100%; background:var(--bg-elev); border:1px solid rgba(var(--ink),0.06); transform:translateX(-100%); transition:transform 0.25s cubic-bezier(0.2,0.9,0.3,1); z-index:30; display:flex; flex-direction:column; font-family:'Inter',sans-serif; box-shadow:8px 0 40px rgba(0,0,0,0.6); -webkit-app-region:no-drag; }
-#utility-sidebar { left:0; width:340px; border-right:1px solid rgba(var(--ink),0.06); transform:translateX(-100%); }
-#utility-sidebar.open { transform:translateX(0); }
-#ai-sidebar { right:0; width:360px; border-left:1px solid rgba(var(--ink),0.06); transform:translateX(100%); box-shadow:-8px 0 40px rgba(0,0,0,0.6); }
-#ai-sidebar.open { transform:translateX(0); }
+/* Slide via left/right (not transform) so Electron's -webkit-app-region:no-drag
+   computes at the on-screen position — otherwise titlebar drag eats header clicks. */
+#utility-sidebar, #ai-sidebar { position:fixed; top:0; height:100%; background:var(--bg-elev); border:1px solid rgba(var(--ink),0.06); transition:left 0.25s cubic-bezier(0.2,0.9,0.3,1), right 0.25s cubic-bezier(0.2,0.9,0.3,1); z-index:30; display:flex; flex-direction:column; font-family:'Inter',sans-serif; box-shadow:8px 0 40px rgba(0,0,0,0.6); -webkit-app-region:no-drag; }
+#utility-sidebar { left:-340px; width:340px; border-right:1px solid rgba(var(--ink),0.06); }
+#utility-sidebar.open { left:0; }
+#ai-sidebar { right:-360px; width:360px; border-left:1px solid rgba(var(--ink),0.06); box-shadow:-8px 0 40px rgba(0,0,0,0.6); }
+#ai-sidebar.open { right:0; }
 #utility-sidebar-header, #ai-sidebar-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid rgba(var(--ink),0.04); flex-shrink:0; height:56px; }
 #utility-sidebar-title { font-size:14px; font-weight:500; color:rgba(var(--ink),0.8); }
 #utility-sidebar-close, #ai-sidebar-close { background:transparent; border:none; color:rgba(var(--ink),0.3); font-size:16px; cursor:pointer; padding:4px 8px; font-family:'Inter',sans-serif; }
