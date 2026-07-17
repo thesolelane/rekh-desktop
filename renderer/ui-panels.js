@@ -85,6 +85,7 @@ utilClose.addEventListener('click', closeUtility);
 // connect AFTER install. Each entry carries the link to get set up + prefilled
 // config, so adding a provider is a one-line change (later: fetch remotely). -----
 const AI_PROVIDERS = {
+  rekhaiplus: { label:'REKH AI+', tag:'hosted · no key needed', endpoint:'https://api.rekhbrowser.com/v1/chat', model:'', connectUrl:'https://rekhbrowser.com/#download', keyHelp:'sign in for your REKH AI+ token', note:'Private AI hosted on REKH’s own servers — no third-party key, prompts are metered but never stored or used for training.' },
   tinfoil:    { label:'Tinfoil', tag:'private · verifiable TEE', endpoint:'https://inference.tinfoil.sh/v1/chat/completions', model:'llama3-3-70b', connectUrl:'https://tinfoil.sh/', keyHelp:'Dashboard → Private Inference → API Keys', note:'Runs in a hardware enclave the provider can’t read — the private engine behind DuckDuckGo’s Duck.ai.' },
   anthropic:  { label:'Anthropic (Claude)', endpoint:'https://api.anthropic.com/v1/messages', model:'claude-opus-4-8', connectUrl:'https://console.anthropic.com/settings/keys', keyHelp:'Console → Settings → API Keys', note:'' },
   openai:     { label:'OpenAI', endpoint:'https://api.openai.com/v1/chat/completions', model:'gpt-4o-mini', connectUrl:'https://platform.openai.com/api-keys', keyHelp:'Platform → API keys', note:'' },
@@ -120,7 +121,7 @@ function updateAiConnectInfo(id) {
 }
 
 // Settings
-const PROVIDER_OPTIONS = [['off','Off'],['tinfoil','Tinfoil (private · TEE)'],['anthropic','Anthropic (Claude)'],['openai','OpenAI'],['openrouter','OpenRouter'],['ollama','Ollama'],['custom','Custom']];
+const PROVIDER_OPTIONS = [['off','Off'],['rekhaiplus','REKH AI+ (hosted)'],['tinfoil','Tinfoil (private · TEE)'],['anthropic','Anthropic (Claude)'],['openai','OpenAI'],['openrouter','OpenRouter'],['ollama','Ollama'],['custom','Custom']];
 const PRIVACY_TOGGLES = [['blockAds','🛡️ Block ads &amp; trackers'],['hideSearchAds','🔎 Hide sponsored search results'],['clickPrivacy','🎯 Block click tracking'],['httpsOnly','🔐 HTTPS-only mode'],['doh','🌐 DNS-over-HTTPS'],['clearOnExit','🧹 Clear data on exit']];
 const FIELD_CSS = "background:rgba(var(--ink),0.05);border:1px solid rgba(var(--ink),0.08);border-radius:6px;color:rgb(var(--ink));padding:8px 12px;font-size:13px;outline:none;";
 // Build the settings panel HTML. Repetitive rows are generated via maps so the
