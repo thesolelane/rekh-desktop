@@ -82,6 +82,8 @@ body.is-mac #titlebar-controls { display:none; }
 #start-search { width:100%; padding:15px 26px; font-size:16px; font-family:'Inter',sans-serif; background:rgba(var(--ink),0.05); border:1px solid rgba(var(--ink),0.08); border-radius:28px; color:rgb(var(--ink)); outline:none; transition:border 0.2s, background 0.2s, box-shadow 0.25s; caret-color:var(--accent); }
 #start-search::placeholder { color:rgba(var(--ink),0.25); }
 #start-search:focus { background:rgba(var(--ink),0.07); border-color:rgba(var(--accent-rgb),0.45); box-shadow:0 0 0 4px rgba(var(--accent-rgb),0.08), 0 10px 34px rgba(0,0,0,0.45); }
+#start-invite { margin-top:22px; background:none; border:none; color:rgba(var(--ink),0.3); font-size:12px; letter-spacing:0.5px; cursor:pointer; font-family:'Inter',sans-serif; transition:color 0.2s; }
+#start-invite:hover { color:var(--accent); }
 /* Slide via left/right (not transform) so Electron's -webkit-app-region:no-drag
    computes at the on-screen position — otherwise titlebar drag eats header clicks. */
 #utility-sidebar, #ai-sidebar { position:fixed; top:0; height:100%; background:var(--bg-elev); border:1px solid rgba(var(--ink),0.06); transition:left 0.25s cubic-bezier(0.2,0.9,0.3,1), right 0.25s cubic-bezier(0.2,0.9,0.3,1); z-index:30; display:flex; flex-direction:column; font-family:'Inter',sans-serif; box-shadow:8px 0 40px rgba(0,0,0,0.6); -webkit-app-region:no-drag; }
@@ -119,6 +121,7 @@ body.is-mac #titlebar-controls { display:none; }
 .ai-action-btn { background:rgba(var(--ink),0.04); border:1px solid rgba(var(--ink),0.06); border-radius:8px; padding:12px 8px; color:rgba(var(--ink),0.6); font-family:'Inter',sans-serif; font-size:12px; font-weight:500; cursor:pointer; transition:background 0.2s; text-align:center; }
 .ai-action-btn:hover { background:rgba(var(--ink),0.08); color:rgb(var(--ink)); }
 .ai-action-btn.loading { opacity:0.4; pointer-events:none; }
+.ai-lang { background:rgba(var(--ink),0.04); border:1px solid rgba(var(--ink),0.06); border-radius:8px; padding:12px 8px; color:rgba(var(--ink),0.6); font-family:'Inter',sans-serif; font-size:12px; font-weight:500; cursor:pointer; outline:none; text-align:center; }
 #ai-output-wrapper { flex:1; overflow-y:auto; background:rgba(var(--ink),0.02); border-radius:10px; border:1px solid rgba(var(--ink),0.04); padding:16px; }
 #ai-thread { display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.5; }
 .ai-msg { max-width:100%; padding:9px 12px; border-radius:12px; white-space:pre-wrap; word-break:break-word; }

@@ -46,7 +46,7 @@ module.exports = [
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'script',
-      globals: { ...globals.browser, rekhAPI: 'readonly', renderSettings: 'readonly', renderVault: 'readonly', renderKnowledge: 'readonly', renderTools: 'readonly', closeUtility: 'readonly' },
+      globals: { ...globals.browser, rekhAPI: 'readonly', renderSettings: 'readonly', renderVault: 'readonly', renderKnowledge: 'readonly', renderTools: 'readonly', renderShare: 'readonly', extractMedia: 'readonly', closeUtility: 'readonly' },
     },
     rules,
   },
@@ -61,6 +61,7 @@ module.exports = [
         utilList: 'readonly', utilTitle: 'readonly', utilSidebar: 'readonly', utilClose: 'readonly',
         overlay: 'readonly', utilOpen: 'writable', showToast: 'readonly', createTab: 'readonly',
         privacyState: 'writable', aiKeyStatus: 'writable', updateVpnIndicator: 'readonly',
+        getActiveTab: 'readonly', aiThread: 'readonly', aiAddBubble: 'readonly',
       },
     },
     rules,

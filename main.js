@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, net, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, session, net, safeStorage, shell } = require('electron');
 // Optional at runtime: if the module isn't bundled, auto-update just no-ops
 // rather than crashing the whole app at load with a dialog.
 let autoUpdater = null;
@@ -63,7 +63,7 @@ function setupPermissions() {
 
 function loadConfig() {
   try { if (fs.existsSync(CONFIG_PATH)) return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {}
-  return { vpnEnabled: false, proxyRules: 'socks5://localhost:9050', blockAds: true, httpsOnly: false, doh: false, clearOnExit: false, hideSearchAds: true };
+  return { vpnEnabled: false, proxyRules: 'socks5://localhost:9050', blockAds: true, httpsOnly: false, doh: false, clearOnExit: false, hideSearchAds: true, clickPrivacy: true };
 }
 function saveConfig(config) { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2)); } catch (e) {} }
 
@@ -182,6 +182,35 @@ function applyAdblock(enabled) {
   const ses = getWebSession();
   if (enabled) ses.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, adblockFilter);
   else ses.webRequest.onBeforeRequest(null);
+}
+
+// --- Click-privacy: strip tracking params from top-level navigations + send
+// GPC/DNT. Cuts "which link/item you clicked" tracking (utm_*, fbclid, ref_, …).
+const TRACK_PARAMS = new Set(['fbclid','gclid','gclsrc','dclid','gbraid','wbraid','msclkid','yclid','twclid','igshid','mkt_tok','ref_','ref_src','_openstat','vero_id','vero_conv','oly_enc_id','oly_anon_id','wickedid','spm','scm','s_cid','mc_eid','mc_cid','__hstc','__hssc','__hsfp','_hsenc','_hsmi',
+  // Google / Bing search session + telemetry (keep q/tbm/udm; drop the rest)
+  'sca_esv','ei','ved','uact','oq','gs_lp','gs_lcp','gs_lcrp','gs_ssp','sclient','biw','bih','sxsrf','aqs','sourceid','gs_id','gs_rn','cvid','sk','sp','qs','sc','form']);
+function isTrackingParam(name) {
+  const n = String(name).toLowerCase();
+  return n.startsWith('utm_') || n.startsWith('pk_') || n.startsWith('matomo_') || TRACK_PARAMS.has(n);
+}
+function stripTrackingParams(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    let changed = false;
+    for (const k of [...u.searchParams.keys()]) { if (isTrackingParam(k)) { u.searchParams.delete(k); changed = true; } }
+    return changed ? u.toString() : null;
+  } catch (e) { return null; }
+}
+// GPC + DNT "do not track/sell" signals on outbound requests.
+let headerPrivacyHooked = false;
+function setupHeaderPrivacy() {
+  if (headerPrivacyHooked) return;
+  headerPrivacyHooked = true;
+  getWebSession().webRequest.onBeforeSendHeaders({ urls: ['<all_urls>'] }, (details, cb) => {
+    const h = details.requestHeaders || {};
+    if (currentConfig.clickPrivacy) { h['DNT'] = '1'; h['Sec-GPC'] = '1'; }
+    cb({ requestHeaders: h });
+  });
 }
 // "full" prebuilt = ads + tracking + annoyances + cookie-notices + social,
 // plus the element-hiding (cosmetic) rules used by injectCosmetics().
@@ -384,12 +413,14 @@ app.whenReady().then(() => {
   currentConfig = loadConfig();
   if (currentConfig.blockAds === undefined) currentConfig.blockAds = true;
   if (currentConfig.hideSearchAds === undefined) currentConfig.hideSearchAds = true;
+  if (currentConfig.clickPrivacy === undefined) currentConfig.clickPrivacy = true;
   currentConfig.httpsOnly = !!currentConfig.httpsOnly;
   currentConfig.doh = !!currentConfig.doh;
   currentConfig.clearOnExit = !!currentConfig.clearOnExit;
   applyDoh(currentConfig.doh);
   applyProxy(currentConfig);
   setupPermissions();
+  setupHeaderPrivacy();
   createWindow();
   setupAdblock();
   setupDownloads();
@@ -412,10 +443,12 @@ app.on('web-contents-created', (event, contents) => {
       if (mainWindow && url && /^https?:\/\//i.test(url)) mainWindow.webContents.send('open-new-tab', url);
       return { action: 'deny' };
     });
-    // Scheme allowlist + HTTPS-only upgrade for guest pages.
+    // Scheme allowlist + click-privacy param strip + HTTPS-only upgrade.
     contents.on('will-navigate', (e, url) => {
       // Only web + about. Block file:, javascript:, data:, blob:, chrome:, etc.
       if (!/^(https?:|about:)/i.test(url)) { e.preventDefault(); logMainError('blocked-scheme', url); return; }
+      // Strip tracking params on the clicked destination (utm_*, fbclid, ref_, …).
+      if (currentConfig.clickPrivacy) { const clean = stripTrackingParams(url); if (clean) { e.preventDefault(); contents.loadURL(clean); return; } }
       if (currentConfig.httpsOnly && /^http:\/\//i.test(url)) { e.preventDefault(); contents.loadURL('https://' + url.slice(7)); }
     });
     // Cosmetic filtering + search-ad removal once the DOM is ready.
@@ -463,13 +496,14 @@ ipcMain.handle('rekh-set-proxy', async (event, newConfig) => {
 // Secret storage via the OS keychain (Keychain / DPAPI / libsecret). Falls back
 // to returning plaintext (ok:false) when encryption isn't available so the
 // renderer can decide how to handle it.
-ipcMain.handle('rekh-get-privacy', () => ({ blockAds: currentConfig.blockAds, hideSearchAds: currentConfig.hideSearchAds, httpsOnly: currentConfig.httpsOnly, doh: currentConfig.doh, clearOnExit: currentConfig.clearOnExit, blocked: blockedCount }));
+ipcMain.handle('rekh-get-privacy', () => ({ blockAds: currentConfig.blockAds, hideSearchAds: currentConfig.hideSearchAds, httpsOnly: currentConfig.httpsOnly, doh: currentConfig.doh, clearOnExit: currentConfig.clearOnExit, clickPrivacy: currentConfig.clickPrivacy, blocked: blockedCount }));
 ipcMain.handle('rekh-set-privacy', (event, p) => {
   currentConfig.blockAds = !!p.blockAds;
   currentConfig.hideSearchAds = !!p.hideSearchAds;
   currentConfig.httpsOnly = !!p.httpsOnly;
   currentConfig.doh = !!p.doh;
   currentConfig.clearOnExit = !!p.clearOnExit;
+  currentConfig.clickPrivacy = !!p.clickPrivacy;
   saveConfig(currentConfig);
   applyDoh(currentConfig.doh);
   applyAdblock(currentConfig.blockAds);
@@ -511,6 +545,14 @@ ipcMain.handle('rekh-import-ai-key-enc', (event, b64) => {
 });
 // Encrypted vault (zero-knowledge) lives in its own module — see vault.js.
 require('./vault').register();
+
+// Open an external URL in the OS default handler (e.g. mailto: in the mail app).
+// Scheme-validated; only the trusted UI renderer can invoke this (webviews have
+// no preload), so hostile pages can't reach it.
+ipcMain.handle('rekh-open-external', (e, url) => {
+  if (typeof url === 'string' && /^(mailto:|https?:)/i.test(url)) { shell.openExternal(url).catch(() => {}); return { ok: true }; }
+  return { ok: false };
+});
 
 // Build the provider-specific request headers + body.
 function buildAiRequest(provider, { model, messages, key }) {

@@ -27,5 +27,6 @@ contextBridge.exposeInMainWorld('rekhAPI', {
   vaultList: () => ipcRenderer.invoke('vault-list'),
   vaultGet: (id) => ipcRenderer.invoke('vault-get', { id }),
   vaultAdd: (entry) => ipcRenderer.invoke('vault-add', { entry }),
-  vaultDelete: (id) => ipcRenderer.invoke('vault-delete', { id })
+  vaultDelete: (id) => ipcRenderer.invoke('vault-delete', { id }),
+  openExternal: (url) => ipcRenderer.invoke('rekh-open-external', url)
 });

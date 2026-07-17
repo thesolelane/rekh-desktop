@@ -28,7 +28,7 @@ const findCount = document.getElementById('find-count');
 const trackerCount = document.getElementById('tracker-count');
 
 // Privacy state (mirrored from main; source of truth is rekh-config.json).
-let privacyState = { blockAds:true, hideSearchAds:true, httpsOnly:false, doh:false, clearOnExit:false, blocked:0 };
+let privacyState = { blockAds:true, hideSearchAds:true, httpsOnly:false, doh:false, clearOnExit:false, clickPrivacy:true, blocked:0 };
 function updateTrackerCount(n) { privacyState.blocked = n||0; trackerCount.textContent = n>0 ? Number(n).toLocaleString() : ''; }
 window.rekhAPI.onBlockedCount((n) => updateTrackerCount(n));
 let tabs = [], activeTabId = null, tabIdCounter = 0;
@@ -174,6 +174,8 @@ document.addEventListener('keydown', (e) => { if ((e.ctrlKey||e.metaKey) && e.ke
 document.getElementById('btn-vault')?.addEventListener('click', () => openUtilityPanel('vault'));
 document.getElementById('btn-knowledge')?.addEventListener('click', () => openUtilityPanel('knowledge'));
 document.getElementById('ai-tools-btn')?.addEventListener('click', () => openUtilityPanel('tools'));
+document.getElementById('ai-media-btn')?.addEventListener('click', () => extractMedia());
+document.getElementById('start-invite')?.addEventListener('click', () => openUtilityPanel('share'));
 
 // VPN
 function updateVpnIndicator(state) {
@@ -207,6 +209,7 @@ function openUtilityPanel(type) {
     case 'vault': title='🔐 Vault'; renderVault(); utilTitle.textContent=title; utilSidebar.classList.add('open'); overlay.classList.add('open'); utilOpen=true; return;
     case 'knowledge': title='🧠 About You'; renderKnowledge(); utilTitle.textContent=title; utilSidebar.classList.add('open'); overlay.classList.add('open'); utilOpen=true; return;
     case 'tools': title='🔧 Tools'; renderTools(); utilTitle.textContent=title; utilSidebar.classList.add('open'); overlay.classList.add('open'); utilOpen=true; return;
+    case 'share': title='✉ Invite a friend'; renderShare(); utilTitle.textContent=title; utilSidebar.classList.add('open'); overlay.classList.add('open'); utilOpen=true; return;
   }
   utilTitle.textContent=title;
   utilList.innerHTML = items.map(it => `<li><span class="favicon">${it.favicon}</span><span class="title">${it.title}</span><span class="url">${it.url}</span></li>`).join('');
@@ -291,12 +294,20 @@ async function aiAsk(text) {
   aiBusy = false; aiSend.disabled = false; aiInput.focus();
 }
 const AI_ACTION_PROMPTS = {
-  summarize: 'Summarize this page concisely.',
-  explain: 'Explain what this page is about in simple terms.',
-  extract: 'Extract the key points from this page as a bullet list.',
-  rewrite: 'Rewrite the main content of this page more clearly.'
+  summarize: 'Give a concise 2-3 sentence TL;DR of this page.',
+  extract: 'Extract the key points from this page as a short bullet list.'
 };
-aiActions.forEach(b => { if (b.id === 'ai-tools-btn') return; b.addEventListener('click', () => aiAsk(AI_ACTION_PROMPTS[b.dataset.action] || b.dataset.action)); });
+aiActions.forEach(b => { if (b.id === 'ai-tools-btn' || b.id === 'ai-media-btn' || b.id === 'ai-translate-btn') return; b.addEventListener('click', () => aiAsk(AI_ACTION_PROMPTS[b.dataset.action] || b.dataset.action)); });
+// Translate: uses the adjacent language picker; remembers the last choice.
+const aiLangSel = document.getElementById('ai-translate-lang');
+if (aiLangSel) {
+  aiLangSel.value = localStorage.getItem('rekh_translate_to') || 'Spanish';
+  aiLangSel.addEventListener('change', () => localStorage.setItem('rekh_translate_to', aiLangSel.value));
+}
+document.getElementById('ai-translate-btn')?.addEventListener('click', () => {
+  const lang = (aiLangSel && aiLangSel.value) || 'English';
+  aiAsk(`Translate the main content of this page into ${lang}. Preserve the meaning and tone; output only the translation.`);
+});
 aiInput.addEventListener('input', autoGrowInput);
 aiInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiAsk(aiInput.value); } });
 aiSend.addEventListener('click', () => aiAsk(aiInput.value));

@@ -57,6 +57,7 @@
           <form id="start-search-form" autocomplete="off">
             <input type="text" id="start-search" placeholder="Search the web or enter an address" spellcheck="false" autocomplete="off" />
           </form>
+          <button id="start-invite" title="Invite a friend to REKH">✉ Invite a friend to REKH</button>
         </div>
       </div>
     </div>
@@ -76,9 +77,23 @@
     <div id="ai-sidebar-body">
       <div id="ai-actions">
         <button class="ai-action-btn" data-action="summarize">Summarize</button>
-        <button class="ai-action-btn" data-action="explain">Explain</button>
-        <button class="ai-action-btn" data-action="extract">Extract</button>
-        <button class="ai-action-btn" data-action="rewrite">Rewrite</button>
+        <button class="ai-action-btn" data-action="extract">Key points</button>
+        <button class="ai-action-btn" id="ai-translate-btn" title="Translate this page">🌐 Translate</button>
+        <select id="ai-translate-lang" class="ai-lang" title="Translate to">
+          <option value="Spanish">Spanish</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Italian">Italian</option>
+          <option value="Portuguese">Portuguese</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Korean">Korean</option>
+          <option value="Arabic">Arabic</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Russian">Russian</option>
+          <option value="English">English</option>
+        </select>
+        <button class="ai-action-btn" id="ai-media-btn" title="Pull images & links; reverse-search images">🖼 Media</button>
         <button class="ai-action-btn" id="ai-tools-btn" title="Connect tools & services">🔧 Tools</button>
       </div>
       <div id="ai-output-wrapper"><div id="ai-thread"><span class="ai-placeholder">Ask about this page, or pick an action above.</span></div></div>
