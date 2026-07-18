@@ -2,6 +2,7 @@
   "name": "rekh-browser",
   "version": "0.1.0",
   "description": "REKH — a quiet, knowledge-focused browser",
+  "license": "MPL-2.0",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
